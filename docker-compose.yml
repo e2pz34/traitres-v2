@@ -1,0 +1,21 @@
+version: "3.8"
+services:
+  les-traitres-v2:
+    image: nginx:alpine
+    container_name: les-traitres-v2
+    ports:
+      - "8182:80"
+    volumes:
+      - /volume1/docker/traitres-v2/www:/usr/share/nginx/html:ro
+    restart: unless-stopped
+
+  les-traitres-v2-server:
+    image: node:18-alpine
+    container_name: les-traitres-v2-server
+    working_dir: /app
+    volumes:
+      - /volume1/docker/traitres-v2/server:/app
+    ports:
+      - "3002:3002"
+    command: node server.js
+    restart: unless-stopped

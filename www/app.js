@@ -20,6 +20,7 @@ const photoStore = {};
 // ===================================================
 var _wsReconnectTimer = null;
 var _wsConnecting = false;
+var _wsStatusDebounce = null;
 
 function connectWS(onOpen) {
   if (_wsConnecting) { if (onOpen && ws && ws.readyState===1) onOpen(); return; }
@@ -35,7 +36,8 @@ function connectWS(onOpen) {
   };
   ws.onclose = function() {
     _wsConnecting = false;
-    setWsStatus(false);
+    if (_wsStatusDebounce) clearTimeout(_wsStatusDebounce);
+    _wsStatusDebounce = setTimeout(function() { setWsStatus(false); }, 2000);
     if (_wsReconnectTimer) return;
     _wsReconnectTimer = setTimeout(function() {
       _wsReconnectTimer = null;
@@ -49,7 +51,7 @@ function connectWS(onOpen) {
       });
     }, isAdmin ? 4000 : 6000);
   };
-  ws.onerror = function() { _wsConnecting = false; setWsStatus(false); };
+  ws.onerror = function() { _wsConnecting = false; if (_wsStatusDebounce) clearTimeout(_wsStatusDebounce); _wsStatusDebounce = setTimeout(function(){ setWsStatus(false); }, 2000); };
   ws.onmessage = function(e) { try { handleMsg(JSON.parse(e.data)); } catch(err) {} };
 }
 
@@ -69,7 +71,7 @@ function setWsStatus(on) {
     pel.textContent = on ? '⚡ En ligne' : '⚡ Hors ligne';
   }
   var roleScreen = document.getElementById('role-screen');
-  if (roleScreen) {
+  if (roleScreen && !isAdmin) {
     roleScreen.style.outline = on ? '5px solid #00e060' : '5px solid #ff2020';
     roleScreen.style.outlineOffset = '-5px';
   }
@@ -680,8 +682,7 @@ function renderPlayers() {
             '<span style="font-family:\'Cinzel\',serif;font-size:10px;color:rgba(255,120,120,.8);letter-spacing:.06em;">Éliminé cette nuit</span>' +
           '</label>'
         : '') +
-      '<div class="player-pin-label">Code PIN</div>' +
-      '<div class="player-pin">' + p.pin + '</div>' +
+
       '<div class="scan-status ' + (p.scanned ? '' : 'waiting') + '"><div class="dot"></div><span>' + (p.scanned ? 'Connecté' : 'En attente') + '</span></div>' +
       '<div class="card-actions"><button class="btn btn-ghost btn-sm" onclick="showQR(' + p.id + ')">QR Code</button></div>';
 

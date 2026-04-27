@@ -1,0 +1,10 @@
+{
+  "name": "les-traitres-v2",
+  "version": "2.0.0",
+  "description": "Les Traitres V2 — backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {}
+}

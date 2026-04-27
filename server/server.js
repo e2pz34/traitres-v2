@@ -502,6 +502,8 @@ server.on('upgrade', (req, socket) => {
       if (buffer.length < totalLen) break;
       const frame = buffer.slice(0, totalLen);
       buffer = buffer.slice(totalLen);
+      const opcode = frame[0] & 0x0f;
+      if (opcode === 0x08 || opcode === 0x09 || opcode === 0x0a) { continue; }
       let msg;
       try {
         const text = decode(frame);
