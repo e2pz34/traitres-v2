@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<script>
+(function(){
+  var p = new URLSearchParams(window.location.search);
+  var ph = new URLSearchParams(window.location.hash.replace(/^#/,''));
+  if(p.get('register')==='1'){
+    try{
+      localStorage.removeItem('traitres_state');
+      ['register_pid','register_name','register_session','register_pin','register_role'].forEach(function(k){ localStorage.removeItem(k); });
+    }catch(e){}
+  } else if(p.get('join')==='1' || ph.get('join')==='1'){
+    try{ localStorage.removeItem('traitres_state'); }catch(e){}
+  }
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Les Traîtres V2</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- ===== ÉCRAN ADMIN ===== -->
+<div id="admin-screen" class="screen active" style="display:flex;flex-direction:column;height:100vh;overflow:hidden;">
+  <div class="admin-header">
+    <div class="admin-title">Les <span>Traîtres</span></div>
+    <div class="config-bar">
+      <label>Joueurs</label>
+      <input type="number" id="nb-joueurs" value="13" min="4" max="20">
+      <label>Traîtres</label>
+      <input type="number" id="nb-traitres" value="2" min="1" max="5">
+      <button class="btn btn-gold btn-sm" id="btn-partie-enregistree" onclick="ouvrirSessionsPopup()">📂 Partie enregistrée</button>
+      <button class="btn btn-ghost btn-sm" id="btn-nouvelle-partie" onclick="nouvellePartie()">✦ Nouvelle partie</button>
+      <button class="btn btn-teal btn-sm" id="btn-reveal" onclick="revealRoles()" style="display:none">🎭 Révéler</button>
+      <button class="btn btn-blue btn-sm" id="btn-qr-accueil" onclick="showQRAccueil()" style="display:none">📲 QR</button>
+      <button class="btn btn-blood btn-sm" id="btn-fin-jeu" onclick="finDeJeu()" style="display:none">🏁 Fin</button>
+      <button class="btn btn-ghost btn-sm" id="btn-reset" onclick="resetPartie()" style="display:none">🗑 Reset</button>
+      <span id="ws-status" class="ws-status ws-off"><span class="dot"></span>Serveur</span>
+    </div>
+  </div>
+  <div class="players-bar" id="players-bar"></div>
+
+  <div class="elim-modal" id="elim-modal">
+    <div class="elim-modal-box">
+      <div class="elim-modal-name" id="elim-modal-name"></div>
+      <div class="elim-modal-role" id="elim-modal-role"></div>
+      <div style="display:flex;gap:10px;justify-content:center">
+        <button class="btn btn-blood" onclick="confirmElimVignette()">⚔ Éliminer</button>
+        <button class="btn btn-ghost btn-sm" onclick="closeElimModal()">Annuler</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="scan-progress" id="scan-progress" style="display:none">
+    <div class="scan-progress-header">
+      <span class="scan-label">Joueurs connectés</span>
+      <span class="scan-count"><span id="scanned-count">0</span> / <span id="total-count">0</span></span>
+    </div>
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-fill" style="width:0%"></div></div>
+  </div>
+  <div class="main-grid" id="main-grid" style="display:none">
+    <div class="main-tabs">
+      <button class="main-tab active" onclick="showMainTab('joueurs')">Joueurs</button>
+      <button class="main-tab" onclick="showMainTab('messages')">Messages</button>
+      <button class="main-tab" onclick="showMainTab('actions')">Actions</button>
+    </div>
+
+    <!-- TAB JOUEURS -->
+    <div class="main-tab-content active" id="maintab-joueurs">
+      <div class="players-section">
+        <div class="section-title">Joueurs &amp; QR Codes</div>
+        <div class="players-grid" id="players-grid"></div>
+      </div>
+    </div>
+
+    <!-- TAB MESSAGES -->
+    <div class="main-tab-content" id="maintab-messages" style="flex-direction:column;gap:0;padding:0;overflow:auto;min-height:0;">
+      <div id="messages-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));flex:1;min-height:0;border-top:1px solid var(--border);overflow:auto;">
+        <!-- Canal groupe -->
+        <div style="display:flex;flex-direction:column;padding:16px;border-right:1px solid var(--border);overflow-y:auto;min-height:0;">
+          <div class="section-title">🌐 Groupe</div>
+          <div class="msg-input-row" style="margin-bottom:8px">
+            <input class="msg-input" id="msg-group-input" placeholder="Message à tous..." onkeydown="if(event.key==='Enter')sendMsgGroup()">
+            <button class="btn btn-gold btn-sm" onclick="sendMsgGroup()">Envoyer</button>
+          </div>
+          <div class="msg-area" id="msg-group-area" style="flex:1;overflow-y:auto;min-height:0"></div>
+        </div>
+        <!-- Canal traîtres -->
+        <div style="display:flex;flex-direction:column;padding:16px;border-right:1px solid var(--border);overflow-y:auto;min-height:0;">
+          <div class="section-title" style="color:var(--blood)">⚔ Traîtres</div>
+          <div class="msg-input-row" style="margin-bottom:8px">
+            <input class="msg-input" id="msg-traitres-input" placeholder="Message secret..." onkeydown="if(event.key==='Enter')sendMsgTraitres()">
+            <button class="btn btn-blood btn-sm" onclick="sendMsgTraitres()">Envoyer</button>
+          </div>
+          <div class="msg-area" id="msg-traitres-area" style="flex:1;overflow-y:auto;min-height:0"></div>
+        </div>
+        <!-- Message privé -->
+        <div style="display:flex;flex-direction:column;padding:16px;overflow-y:auto;min-height:0;">
+          <div class="section-title" style="color:#80b8ff">✉ Privé</div>
+          <select class="target-select" id="private-target" style="margin-bottom:10px">
+            <option value="">— Choisir un joueur —</option>
+          </select>
+          
+          <div class="msg-input-row" style="margin-bottom:8px">
+            <input class="msg-input" id="msg-private-input" placeholder="Mission secrète..." onkeydown="if(event.key==='Enter')sendMsgPrivate()">
+            <button class="btn btn-blue btn-sm" onclick="sendMsgPrivate()">Envoyer</button>
+          </div>
+          <div class="msg-area" id="msg-private-area" style="flex:1;overflow-y:auto;min-height:0"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB ACTIONS -->
+    <div class="main-tab-content" id="maintab-actions" style="flex-direction:column;overflow:auto;min-height:0;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;flex:1;gap:0;border-top:1px solid var(--border);min-height:0;overflow:auto;">
+        <!-- Challenges -->
+        <div style="padding:20px;border-right:1px solid var(--border);overflow-y:auto;min-height:0;">
+          <div class="section-title">Nouveau challenge</div>
+
+          <div class="challenge-add">
+            <input class="challenge-input" id="challenge-input" placeholder="Décris le challenge..." onkeydown="if(event.key==='Enter')addChallenge()">
+            <button class="btn btn-gold btn-sm" onclick="addChallenge()">+</button>
+          </div>
+          <div class="timer-row" id="timer-row-challenge">
+            <span class="timer-label">Timer :</span>
+            <button class="timer-btn selected" onclick="selectChalTimer(0,this)">Aucun</button>
+            <button class="timer-btn" onclick="selectChalTimer(60,this)">1 min</button>
+            <button class="timer-btn" onclick="selectChalTimer(180,this)">3 min</button>
+            <button class="timer-btn" onclick="selectChalTimer(300,this)">5 min</button>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:8px">
+            <button class="btn btn-gold btn-sm" style="flex:1" onclick="launchChallenge('group')">Lancer à tous</button>
+            <button class="btn btn-blood btn-sm" style="flex:1" onclick="launchChallenge('traitres')">Traîtres only</button>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <select class="target-select" id="chal-individual-target" style="flex:1;font-size:13px;padding:6px 8px">
+              <option value="">— Joueur individuel —</option>
+            </select>
+            <button class="btn btn-blue btn-sm" onclick="launchChallenge('individual')">Individuel</button>
+          </div>
+          <div style="display:none
+          </div>
+          <div class="section-title" style="margin-top:20px">Historique</div>
+          <div class="challenge-list" id="challenge-list"></div>
+        </div>
+        <!-- Nuit -->
+        <div style="padding:20px;overflow-y:auto;min-height:0;">
+          <div class="night-block">
+            <div class="section-title">Vote des traîtres</div>
+            <div style="margin-bottom:16px;">
+              <button class="btn btn-blood btn-sm" style="width:100%" onclick="ouvrirVoteNuit()">🌙 Ouvrir le vote — 7 min</button>
+            </div>
+            <div id="votes-nuit-display"></div>
+            <div id="eliminated-list" style="margin-top:12px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== POPUP SESSIONS ===== -->
+<div id="sessions-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#1c1b2e;border:1px solid var(--gold-dim);border-radius:16px;padding:28px;max-width:480px;width:100%;max-height:80vh;overflow-y:auto;">
+    <div style="font-family:'Cinzel',serif;font-size:18px;color:var(--gold);margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;">
+      <span>Parties enregistrées</span>
+      <button onclick="fermerSessionsPopup()" style="background:none;border:none;color:var(--gold);font-size:22px;cursor:pointer;">×</button>
+    </div>
+    <div id="sessions-list" style="display:flex;flex-direction:column;gap:10px;">
+      <div style="color:var(--text-dim);font-style:italic;text-align:center;padding:20px;">Chargement...</div>
+    </div>
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+      <div style="font-family:'Cinzel',serif;font-size:11px;color:var(--text-dim);margin-bottom:10px;letter-spacing:.1em;">NOUVELLE SESSION NOMMÉE</div>
+      <div style="display:flex;gap:8px;">
+        <input id="new-session-name" type="text" placeholder="Nom de la session..." style="flex:1;background:#25243a;border:1px solid var(--border-bright);color:#fff;font-family:'Crimson Text',serif;font-size:16px;padding:8px 12px;border-radius:6px;outline:none;">
+        <button class="btn btn-gold btn-sm" onclick="creerSessionNommee()">Créer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ÉCRAN PIN ===== -->
+
+
+<!-- ===== ÉCRAN RÔLE ===== -->
+<div id="role-screen" class="screen">
+  <div id="notif-stack-container" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:9000;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding:16px 16px 40px;gap:12px;"></div>
+  <div class="notif-overlay" id="notif-overlay">
+    <div class="notif-box" id="notif-box">
+      <div class="notif-label" id="notif-label"></div>
+      <div class="notif-text" id="notif-text"></div>
+      <div class="notif-timer" id="notif-timer" style="display:none"></div>
+      <button class="notif-close" onclick="closeNotif()">OK, j'ai lu</button>
+    </div>
+  </div>
+  <div id="role-reveal-section" class="role-reveal-full"></div>
+  <div id="role-chat-section" class="role-chat-section" style="display:none">
+    <div class="role-top">
+      <div class="role-mini-card" id="role-mini-card"></div>
+    </div>
+    <div id="canal-tabs" style="display:none;border-bottom:2px solid var(--border);display:flex;">
+      <button id="tab-groupe-btn" onclick="switchCanal('groupe')" style="flex:1;padding:10px;font-family:'Cinzel',serif;font-size:12px;background:none;border:none;border-bottom:2px solid var(--gold);margin-bottom:-2px;color:var(--gold);cursor:pointer;position:relative;">Groupe</button>
+      <button id="tab-traitres-btn" onclick="switchCanal('traitres')" style="flex:1;padding:10px;font-family:'Cinzel',serif;font-size:12px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer;display:none;position:relative;">Traîtres</button>
+      <button id="tab-prive-btn" onclick="switchCanal('prive')" style="flex:1;padding:10px;font-family:'Cinzel',serif;font-size:12px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer;position:relative;">Privé</button>
+    </div>
+    <div class="chat-box">
+      <div class="chat-input-area" id="player-input-area">
+        <input class="chat-input" id="player-msg-input" placeholder="Écrire un message..." onkeydown="if(event.key==='Enter')playerSendMsg()">
+        <button class="chat-send" onclick="playerSendMsg()">Envoyer</button>
+      </div>
+      <div class="chat-messages" id="chat-messages"></div>
+      <div class="chat-messages" id="chat-messages-traitres" style="display:none"></div>
+      <div class="chat-messages" id="chat-messages-prive" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL QR JOUEUR ===== -->
+<div class="modal-overlay" id="qr-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <div class="modal-player-name" id="modal-pname"></div>
+    <div class="modal-instruction">Fais scanner ce QR code en privé</div>
+    <div id="qr-container"><div id="qrcode"></div></div>
+    <div class="modal-url" id="modal-url"></div>
+  </div>
+</div>
+
+<!-- ===== MODAL QR ACCUEIL ===== -->
+<div class="modal-overlay" id="qr-accueil-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="document.getElementById('qr-accueil-modal').classList.remove('open')">×</button>
+    <div class="modal-player-name">QR Code d'accueil</div>
+    <div class="modal-instruction">Affichez ce QR code — les joueurs scannent et saisissent leur prénom</div>
+    <div id="qr-container-accueil"><div id="qrcode-accueil"></div></div>
+    <div class="modal-url" id="qr-accueil-url"></div>
+    <button class="btn btn-gold" style="width:100%;margin-top:14px;" onclick="printQRAccueil()">🖨 Imprimer</button>
+  </div>
+</div>
+
+<!-- ===== ÉCRAN INSCRIPTION ===== -->
+<div id="register-screen" style="display:none;min-height:100vh;background:var(--dark);align-items:flex-start;justify-content:center;padding-top:40px;">
+  <div class="pin-card" style="max-width:380px;">
+    <div class="pin-title">✦ Les Traîtres ✦</div>
+    <div class="pin-sub">Saisis ton prénom pour rejoindre la partie</div>
+    <input id="register-name-input" type="text" autocomplete="off" autocorrect="off" spellcheck="false"
+      style="width:100%;background:var(--dark3);border:1px solid var(--gold-dim);color:#fff;font-family:'Crimson Text',serif;font-size:22px;padding:12px 16px;border-radius:8px;outline:none;text-align:center;margin-bottom:20px;letter-spacing:.05em"
+      placeholder="Ton prénom..."
+      onkeydown="if(event.key==='Enter')submitRegister()">
+    <button class="btn btn-gold" style="width:100%;padding:14px;font-size:15px;" onclick="submitRegister()">Rejoindre la partie →</button>
+    <div id="register-error" style="color:#ff6060;font-family:'Cinzel',serif;font-size:12px;letter-spacing:.1em;margin-top:14px;min-height:18px;text-align:center;"></div>
+  </div>
+</div>
+
+<!-- ===== ÉCRAN ATTENTE ===== -->
+<div id="waiting-screen" style="display:none;min-height:100vh;background:var(--dark);align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:40px 20px;">
+  <div style="font-size:48px;margin-bottom:20px;">⏳</div>
+  <div style="font-family:'Cinzel',serif;font-size:22px;color:var(--gold);margin-bottom:12px;">Inscription enregistrée !</div>
+  <div style="font-family:'Cinzel',serif;font-size:16px;color:var(--text-dim);margin-bottom:8px;" id="waiting-name"></div>
+  <div style="font-size:15px;color:rgba(255,255,255,.5);font-style:italic;max-width:280px;line-height:1.7;">Attends le signal de l'animateur.<br>Tu recevras ton rôle quand la partie commence.</div>
+  <div style="margin-top:30px;width:40px;height:2px;background:linear-gradient(90deg,var(--gold-dim),var(--gold));margin-left:auto;margin-right:auto;"></div>
+<button class="pret-btn" id="pret-btn" onclick="signalPret()" style="max-width:320px;margin-top:28px;">✋ Je suis prêt</button>
+<div id="pret-confirm" style="display:none;font-family:'Cinzel',serif;font-size:12px;color:rgba(30,160,80,.9);margin-top:12px;letter-spacing:.08em;">✓ Signal envoyé à l'animateur</div>
+</div>
+
+<!-- ===== PHOTO EDITOR ===== -->
+<div class="photo-editor-overlay" id="photo-editor-overlay">
+  <div class="photo-editor-box">
+    <div class="photo-editor-title">Ajuster la photo</div>
+    <div class="photo-editor-canvas-wrap" id="photo-editor-wrap">
+      <canvas id="photo-editor-canvas" width="200" height="200"></canvas>
+    </div>
+    <div class="photo-editor-hint">Glisse pour repositionner</div>
+    <input type="range" class="photo-editor-zoom" id="photo-zoom" min="0.1" max="3" step="0.05" value="1">
+    <div class="photo-editor-actions">
+      <button class="btn btn-ghost btn-sm" onclick="cancelPhotoEdit()">Annuler</button>
+      <button class="btn btn-gold btn-sm" onclick="confirmPhotoEdit()">Valider</button>
+    </div>
+  </div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
