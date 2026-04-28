@@ -370,6 +370,80 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.url === '/sessions/save-player' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      var msg = JSON.parse(body);
+      var data = loadData();
+      var session = data.sessions.find(function(s) { return s.id === msg.sessionId; });
+      if (!session) {
+        res.writeHead(404, {'Content-Type':'application/json','Access-Control-Allow-Origin':'*'});
+        res.end(JSON.stringify({error:'Session non trouvee'}));
+        return;
+      }
+      var player = session.players.find(function(p) { return p.id === msg.playerId; });
+      if (!player) {
+        res.writeHead(404, {'Content-Type':'application/json','Access-Control-Allow-Origin':'*'});
+        res.end(JSON.stringify({error:'Joueur non trouve'}));
+        return;
+      }
+      if (msg.name !== undefined) player.name = msg.name;
+      if (msg.photo !== undefined) player.photo = msg.photo;
+      if (msg.photoFull !== undefined) player.photoFull = msg.photoFull;
+      session.lastSaved = new Date().toISOString();
+      saveData(data);
+      res.writeHead(200, {'Content-Type':'application/json','Access-Control-Allow-Origin':'*'});
+      res.end(JSON.stringify({ok:true}));
+    });
+    return;
+  }
+
+  if (req.url === '/sessions/toggle-absent' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      var msg = JSON.parse(body);
+      var data = loadData();
+      var session = data.sessions.find(function(s) { return s.id === msg.sessionId; });
+      if (!session) { res.writeHead(404,{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}); res.end(JSON.stringify({error:'Session non trouvee'})); return; }
+      var player = session.players.find(function(p) { return p.id === msg.playerId; });
+      if (!player) { res.writeHead(404,{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}); res.end(JSON.stringify({error:'Joueur non trouve'})); return; }
+      player.absent = !player.absent;
+      session.lastSaved = new Date().toISOString();
+      saveData(data);
+      res.writeHead(200,{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'});
+      res.end(JSON.stringify({ok:true, absent:player.absent}));
+    });
+    return;
+  }
+
+  if (req.url === '/sessions/reassign-roles' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      var msg = JSON.parse(body);
+      var data = loadData();
+      var session = data.sessions.find(function(s) { return s.id === msg.sessionId; });
+      if (!session) { res.writeHead(404,{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}); res.end(JSON.stringify({error:'Session non trouvee'})); return; }
+      var actifs = session.players.filter(function(p) { return !p.absent; });
+      var nbT = session.nbTraitres || 2;
+      // Redistribuer rôles sur les actifs uniquement, préserver noms/photos
+      var ids = actifs.map(function(p){return p.id;});
+      var shuffled = ids.slice().sort(function(){return Math.random()-.5;});
+      var traitres = shuffled.slice(0, nbT);
+      actifs.forEach(function(p){
+        p.role = traitres.indexOf(p.id) >= 0 ? 'traitre' : 'fidele';
+        p.pin = generatePin();
+      });
+      session.lastSaved = new Date().toISOString();
+      saveData(data);
+      res.writeHead(200,{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'});
+      res.end(JSON.stringify({ok:true, players:session.players}));
+    });
+    return;
+  }
+
   if (req.url === '/sessions/delete' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => body += chunk);

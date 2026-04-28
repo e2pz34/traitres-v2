@@ -40,7 +40,7 @@
       <button class="btn btn-blue btn-sm" id="btn-qr-accueil" onclick="showQRAccueil()" style="display:none">📲 QR</button>
       <button class="btn btn-blood btn-sm" id="btn-fin-jeu" onclick="finDeJeu()" style="display:none">🏁 Fin</button>
       <button class="btn btn-ghost btn-sm" id="btn-reset" onclick="resetPartie()" style="display:none">🗑 Reset</button>
-      <span id="ws-status" class="ws-status ws-off"><span class="dot"></span>Serveur</span>
+      <span id="ws-status" class="ws-status ws-off"><span class="dot"></span>Serveur</span><span id="autosave-indicator" style="font-family:Cinzel,serif;font-size:10px;color:var(--text-dim);opacity:.4;transition:opacity .5s;margin-left:8px;align-self:center;"></span>
     </div>
   </div>
   <div class="players-bar" id="players-bar"></div>
@@ -72,15 +72,20 @@
 
     <!-- TAB JOUEURS -->
     <div class="main-tab-content active" id="maintab-joueurs">
-      <div class="players-section">
+      <div class="tab-header">
         <div class="section-title">Joueurs &amp; QR Codes</div>
+      </div>
+      <div class="tab-body players-section" style="padding:20px 24px;">
         <div class="players-grid" id="players-grid"></div>
       </div>
     </div>
 
     <!-- TAB MESSAGES -->
-    <div class="main-tab-content" id="maintab-messages" style="flex-direction:column;gap:0;padding:0;overflow:auto;min-height:0;">
-      <div id="messages-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));flex:1;min-height:0;border-top:1px solid var(--border);overflow:auto;">
+    <div class="main-tab-content" id="maintab-messages">
+      <div class="tab-header">
+        <div class="section-title">Messagerie</div>
+      </div>
+      <div class="tab-body" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));min-height:0;overflow:hidden;height:100%;" id="messages-grid">
         <!-- Canal groupe -->
         <div style="display:flex;flex-direction:column;padding:16px;border-right:1px solid var(--border);overflow-y:auto;min-height:0;">
           <div class="section-title">🌐 Groupe</div>
@@ -116,8 +121,11 @@
     </div>
 
     <!-- TAB ACTIONS -->
-    <div class="main-tab-content" id="maintab-actions" style="flex-direction:column;overflow:auto;min-height:0;">
-      <div style="display:grid;grid-template-columns:1fr 1fr;flex:1;gap:0;border-top:1px solid var(--border);min-height:0;overflow:auto;">
+    <div class="main-tab-content" id="maintab-actions">
+      <div class="tab-header">
+        <div class="section-title">Actions &amp; Nuit</div>
+      </div>
+      <div class="tab-body" style="display:grid;grid-template-columns:1fr 1fr;gap:0;min-height:0;overflow:hidden;height:100%;">
         <!-- Challenges -->
         <div style="padding:20px;border-right:1px solid var(--border);overflow-y:auto;min-height:0;">
           <div class="section-title">Nouveau challenge</div>
@@ -259,14 +267,21 @@
 
 <!-- ===== ÉCRAN ATTENTE ===== -->
 <div id="waiting-screen" style="display:none;min-height:100vh;background:var(--dark);align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:40px 20px;">
-  <div style="font-size:48px;margin-bottom:20px;">⏳</div>
-  <div style="font-family:'Cinzel',serif;font-size:22px;color:var(--gold);margin-bottom:12px;">Inscription enregistrée !</div>
-  <div style="font-family:'Cinzel',serif;font-size:16px;color:var(--text-dim);margin-bottom:8px;" id="waiting-name"></div>
-  <div style="font-size:15px;color:rgba(255,255,255,.5);font-style:italic;max-width:280px;line-height:1.7;">Attends le signal de l'animateur.<br>Tu recevras ton rôle quand la partie commence.</div>
-  <div style="margin-top:30px;width:40px;height:2px;background:linear-gradient(90deg,var(--gold-dim),var(--gold));margin-left:auto;margin-right:auto;"></div>
+  <div style="font-size:56px;margin-bottom:24px;animation:ws-pulse 2s ease-in-out infinite;">✦</div>
+  <div style="font-family:'Cinzel',serif;font-size:13px;letter-spacing:.2em;color:var(--gold);opacity:.7;margin-bottom:18px;text-transform:uppercase;">Les Traîtres</div>
+  <div style="font-family:'Cinzel',serif;font-size:24px;color:#fff;margin-bottom:8px;letter-spacing:.05em;" id="waiting-name"></div>
+  <div id="waiting-subtitle" style="font-size:14px;color:rgba(255,255,255,.45);font-style:italic;max-width:260px;line-height:1.6;margin-top:8px;">En attente de l'animateur…</div>
+  <div style="margin-top:32px;width:40px;height:2px;background:linear-gradient(90deg,var(--gold-dim),var(--gold));margin-left:auto;margin-right:auto;"></div>
+  <div id="ws-status-waiting" style="margin-top:20px;font-size:12px;color:rgba(255,255,255,.3);font-family:'Cinzel',serif;letter-spacing:.08em;"></div>
 <button class="pret-btn" id="pret-btn" onclick="signalPret()" style="max-width:320px;margin-top:28px;">✋ Je suis prêt</button>
 <div id="pret-confirm" style="display:none;font-family:'Cinzel',serif;font-size:12px;color:rgba(30,160,80,.9);margin-top:12px;letter-spacing:.08em;">✓ Signal envoyé à l'animateur</div>
 </div>
+<style>
+@keyframes ws-pulse {
+  0%,100% { opacity:.4; transform:scale(1); }
+  50% { opacity:1; transform:scale(1.15); }
+}
+</style>
 
 <!-- ===== PHOTO EDITOR ===== -->
 <div class="photo-editor-overlay" id="photo-editor-overlay">

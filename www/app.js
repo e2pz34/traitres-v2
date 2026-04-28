@@ -6,7 +6,7 @@ const WS_URL = (location.protocol==='https:' ? 'wss://' : 'ws://') + location.ho
 let players = [], sessionId = '', eliminatedPlayers = new Set(), maxPlayers = 13;
 let challenges = [], currentType = 'p', currentTimer = 0, currentChalTimer = 0;
 let ws = null, isAdmin = false, myPlayerId = null, myRole = null, myName = null, mySession = null, myPin = null;
-let timerInterval = null, pinAttempts = 0, pinBuffer = '', pendingParams = null;
+let timerInterval = null;
 let currentCanal = 'groupe';
 let selectedPlayers = new Set();
 let votesRecus = {};
@@ -440,76 +440,6 @@ function handleMsg(msg) {
 // ===================================================
 function generatePin() { return String(Math.floor(1000 + Math.random() * 9000)); }
 
-function showPinScreen(params) {
-  pendingParams = params; pinAttempts = 0; pinBuffer = '';
-  document.getElementById('pin-player-name').textContent = 'Code secret pour ' + decodeURIComponent(params.get('name') || 'Joueur');
-  document.getElementById('pin-error').textContent = '';
-  document.getElementById('pin-attempts').textContent = '';
-  updatePinDots();
-  document.getElementById('admin-screen').classList.remove('active');
-  /* pin-screen removed */
-}
-
-function pinPress(d) {
-  if (pinBuffer.length >= 4) return;
-  pinBuffer += d; updatePinDots();
-  if (pinBuffer.length === 4) setTimeout(pinValidate, 200);
-}
-
-function pinClear() {
-  pinBuffer = pinBuffer.slice(0, -1); updatePinDots();
-  document.getElementById('pin-error').textContent = '';
-}
-
-function updatePinDots() {
-  for (var i = 0; i < 4; i++) {
-    document.getElementById('pd' + i).className = 'pin-dot' + (i < pinBuffer.length ? ' filled' : '');
-  }
-}
-
-function pinValidate() {
-  if (window._joinMode) {
-    var jparams = new URLSearchParams(window.location.search);
-    var jexpected = jparams.get('pin');
-    if (pinBuffer === jexpected) {
-      /* pin-screen removed */
-      document.getElementById('waiting-screen').style.display = 'flex';
-      document.getElementById('waiting-name').textContent = 'Bonjour ' + decodeURIComponent(jparams.get('name') || '') + ' !';
-      isAdmin = false; sessionId = '';
-      myName = decodeURIComponent(jparams.get('name') || '');
-      mySession = jparams.get('session');
-      myPlayerId = parseInt(jparams.get('pid'));
-      connectWS(function() {
-        wsSend({type:'identify', playerId:parseInt(jparams.get('pid')), playerName:myName, role:'fidele', sessionId:jparams.get('session'), isAdmin:false});
-      });
-    } else {
-      pinAttempts++; pinBuffer = '';
-      updatePinDots();
-      document.getElementById('pin-error').textContent = 'Code incorrect !';
-      if (pinAttempts >= 3) {
-        document.querySelectorAll('.pin-key').forEach(function(k) { k.disabled = true; });
-        document.getElementById('pin-error').textContent = '🔒 Accès bloqué';
-      }
-    }
-    return;
-  }
-  var pinExpected = pendingParams.get('pin');
-  if (pinBuffer === pinExpected) {
-    /* pin-screen removed */
-    document.getElementById('role-screen').classList.add('active');
-    renderRolePage(pendingParams);
-  } else {
-    pinAttempts++; pinBuffer = ''; updatePinDots();
-    document.getElementById('pin-error').textContent = 'Code incorrect !';
-    document.getElementById('pin-attempts').textContent = pinAttempts >= 3
-      ? "Accès bloqué — demande à l'animateur"
-      : 'Tentative ' + pinAttempts + '/3';
-    if (pinAttempts >= 3) {
-      document.querySelectorAll('.pin-key').forEach(function(k) { k.disabled = true; });
-      document.getElementById('pin-error').textContent = '🔒 Accès bloqué';
-    }
-  }
-}
 
 // ===================================================
 // ADMIN — INIT / RESET
